@@ -7,6 +7,8 @@
 import com.sun.image.codec.jpeg.JPEGCodec;
 import com.sun.image.codec.jpeg.JPEGImageDecoder;
 
+
+
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -14,9 +16,11 @@ import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -25,6 +29,7 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
@@ -33,8 +38,6 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 
 import javax.swing.ImageIcon;
@@ -59,6 +62,7 @@ public class CamCenter extends JPanel implements Runnable {
     JLabel picLabel = new JLabel("No hay conexion");
     JPanel panel = new JPanel();
     private boolean motion = true;
+    private boolean silentmode = false;
     JFrame frame = new JFrame("Display image");
     Font f = new Font("Courier", Font.PLAIN, 10);
     public boolean connected = false;
@@ -70,7 +74,7 @@ public class CamCenter extends JPanel implements Runnable {
     int puerto;
 
     /** Creates a new instance of AxisCamera */
-    public CamCenter(String b, String URL, JFrame fr, String conex, int pu) {
+    public CamCenter(String b, String URL, JFrame fr, String conex, int pu, boolean sm) {
 
         puerto = pu;
         conexion = conex;
@@ -78,8 +82,11 @@ public class CamCenter extends JPanel implements Runnable {
         jpgURL = URL;
         frame = fr;
         Nombre = b;
+        silentmode = sm;
+        if(!silentmode){
         panel.add(picLabel);
         frame.add(panel);
+        }
 
     }
 
@@ -169,8 +176,9 @@ public class CamCenter extends JPanel implements Runnable {
                     int type = (image.getType() == 0)
                             ? BufferedImage.TYPE_INT_ARGB
                             : image.getType();
-
+                    if(!silentmode){
                     Mostrar(frame, resizeImage(image, type));
+                    }
                 }
             } else {
                 while (!terminado) {
@@ -207,9 +215,10 @@ public class CamCenter extends JPanel implements Runnable {
             if (sockete) {
                 try {
                     s = new Socket(conexion, puerto);
-                    os = s.getOutputStream();
 
+                    os = s.getOutputStream();
                     oos = new ObjectOutputStream(os);
+                    oos.writeObject(new String("SIG"));
                     sockete2 = true;
                     sockete = false;
 
@@ -243,12 +252,12 @@ public class CamCenter extends JPanel implements Runnable {
             // ImageIO.write((RenderedImage) image, "jpg", new File(String.format("imagen%d",d))); // sirve para crear el archivo
             // System.out.println("se guarda la foto");
         } catch (IOException ex) {
-            
+
             if (sockete2 == true) {
                 sockete = true;
             }
-            
-            
+
+
         } catch (com.sun.image.codec.jpeg.ImageFormatException e) {
             System.out.println("Formato Invalido de MJPE");
             if (motion == false) {
@@ -265,8 +274,6 @@ public class CamCenter extends JPanel implements Runnable {
 
         }
     }
-
-    
 
     public void readLine(int n, DataInputStream dis) {    // used to strip out the header lines
         for (int i = 0; i < n; i++) {
@@ -310,16 +317,30 @@ public class CamCenter extends JPanel implements Runnable {
     @Override
     public void run() {
 
-        do {
-            try {
-                connect();
-                disconnect();
-                Thread.sleep(intentos);
-                intentos = intentos * 2;
-            } catch (InterruptedException ex) {
-                // Logger.getLogger(CamCenter.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        } while (frame.isShowing() && !terminado && intentos < 180000);
+
+        if (silentmode) {
+            do {
+                try {
+                    connect();
+                    disconnect();
+                    Thread.sleep(intentos);
+                    intentos = intentos * 2;
+                } catch (InterruptedException ex) {
+                    // Logger.getLogger(CamCenter.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } while (!terminado && intentos < 180000);
+        } else {
+            do {
+                try {
+                    connect();
+                    disconnect();
+                    Thread.sleep(intentos);
+                    intentos = intentos * 2;
+                } catch (InterruptedException ex) {
+                    // Logger.getLogger(CamCenter.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } while (frame.isShowing() && !terminado && intentos < 180000);
+        }
 
     }
 
@@ -406,9 +427,10 @@ public class CamCenter extends JPanel implements Runnable {
     public static void main(String[] args) throws UnknownHostException, IOException {
         if (args.length > 0) {
 
-            int puerto2 = 2002;
+            int puerto2 = 8888;
             String conexion2 = "localhost";
             String file = "";
+            boolean silentmode = false;
 
             for (int i = 0; i < args.length; i++) {
 
@@ -426,6 +448,10 @@ public class CamCenter extends JPanel implements Runnable {
                             file = args[++i];
                             break;
 
+                        case 's':
+                            silentmode = true;
+                            break;
+
                     }
                 }
             }
@@ -436,15 +462,17 @@ public class CamCenter extends JPanel implements Runnable {
             }
 
             HashMap cams = CamCenter.lector(file);
-            JFrame frame = Init(cams.size());
-
+            JFrame frame = null;
+            if (!silentmode) {
+                frame = Init(cams.size());
+            }
             System.out.println(cams.size());
 
             Iterator k = cams.values().iterator();
 
             while (k.hasNext()) {
                 camara c = (camara) k.next();
-                CamCenter axPanel = new CamCenter(c.Nombre, c.URL, frame, conexion2, puerto2);
+                CamCenter axPanel = new CamCenter(c.Nombre, c.URL, frame, conexion2, puerto2, silentmode);
 
                 new Thread(axPanel).start();
             }
