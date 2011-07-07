@@ -12,7 +12,7 @@ found at http://www.jibble.org/licenses/
 $Author: pjm2 $
 $Id: ServerSideScriptEngine.java,v 1.4 2004/02/01 13:37:35 pjm2 Exp $
 
-*/
+ */
 
 import java.io.*;
 import java.net.*;
@@ -27,7 +27,9 @@ public class SimpleWebServer extends Thread {
 
     public static final String VERSION = "SimpleWebServer  http://www.jibble.org/";
     public static final Hashtable MIME_TYPES = new Hashtable();
-    
+    private HashMap alertas = new HashMap();
+    private HashMap camaras = new HashMap();
+
     static {
         String image = "image/";
         MIME_TYPES.put(".gif", image + "gif");
@@ -39,7 +41,7 @@ public class SimpleWebServer extends Thread {
         MIME_TYPES.put(".htm", text + "html");
         MIME_TYPES.put(".txt", text + "plain");
     }
-    
+
     public SimpleWebServer(File rootDir, int port) throws IOException {
         _rootDir = rootDir.getCanonicalFile();
         if (!_rootDir.isDirectory()) {
@@ -48,7 +50,7 @@ public class SimpleWebServer extends Thread {
         _serverSocket = new ServerSocket(port);
         start();
     }
-    
+
     public SimpleWebServer(int port) throws IOException {
         _rootDir = new File("./").getCanonicalFile();
         if (!_rootDir.isDirectory()) {
@@ -57,20 +59,20 @@ public class SimpleWebServer extends Thread {
         _serverSocket = new ServerSocket(port);
         start();
     }
-    
+
+    @Override
     public void run() {
         while (_running) {
             try {
-                Socket socket = _serverSocket.accept();
-                RequestThread requestThread = new RequestThread(socket, _rootDir);
-                requestThread.start();
-            }
-            catch (IOException e) {
+               // Socket socket = ;
+                new RequestThread(_serverSocket.accept(), _rootDir, camaras, alertas).start();
+              //  requestThread
+            } catch (IOException e) {
                 System.exit(1);
             }
         }
     }
-    
+
     // Work out the filename extension.  If there isn't one, we keep
     // it as the empty string ("").
     public static String getExtension(java.io.File file) {
@@ -82,18 +84,15 @@ public class SimpleWebServer extends Thread {
         }
         return extension.toLowerCase();
     }
-    
+
     public static void main(String[] args) {
         try {
             SimpleWebServer server = new SimpleWebServer(new File("./"), 80);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             System.out.println(e);
         }
     }
-    
     private File _rootDir;
     private ServerSocket _serverSocket;
     private boolean _running = true;
-
 }

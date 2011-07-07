@@ -17,43 +17,6 @@ import java.util.logging.Logger;
  *
  * @author daniel
  */
-public class serverMovil extends Thread {
-    private HashMap alertas =null;
-    private HashMap camaras =null;    
-    private int puerto =2003;
-    private boolean matar=true;
-    
-    public serverMovil (int puerto, HashMap Alertas,HashMap Camaras){
-        this.puerto = puerto;
-        this.alertas = Alertas;
-        this.camaras = Camaras;
-    }
-
-   
-    @Override
-    public void run(){
-
-        ServerSocket serverSocket = null;
-        try {
-            serverSocket = new ServerSocket(puerto);
-            
-        } catch (IOException e) {
-            System.err.println("No se puede escuchar al puerto "+puerto);
-            System.exit(-1);
-        }
-        try {
-            while (matar)
-                new conexionMovil(serverSocket.accept(),this.alertas,this.camaras).start();
-            serverSocket.close();
-        } catch (IOException ex) {
-            
-            System.out.println("Fallo de conexion");
-            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        }
-    
-}
-
 class conexionMovil extends Thread{
 
     private HashMap camaras =null;  
@@ -72,7 +35,7 @@ class conexionMovil extends Thread{
              // entrada = new ObjectInputStream(soc.getInputStream());
               salida = new ObjectOutputStream(soc.getOutputStream());
     }
-    
+        
     @Override
     public void run(){
         try {
